@@ -75,15 +75,7 @@ class CmapSimulation {
 
     }
 
-    public int simulate(double min, double max) {
 
-        Random r = new Random()
-        List starting = graph.vertexSet().collect { item ->
-
-            min + (r.nextDouble() * (max - min))
-        }
-        return simulate(starting)
-    }
 
     public int simulate(List starting = null) {
         //Map indices = [:]

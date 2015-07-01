@@ -1,5 +1,7 @@
-package edu.msu.mi.cmap
+package edu.msu.mi.cmap.simulation
 
+import edu.msu.mi.cmap.BinaryThresholdCmap
+import edu.msu.mi.cmap.analysis.Toolkit
 import edu.msu.mi.socnet.JGraphTUtils
 
 /**
@@ -32,22 +34,7 @@ class Agent {
         this.random = new Random()
     }
 
-    public static double score(List test, List truth, List awareness = null) {
-        double result = 0
-        if (awareness == null) {
-            awareness = 0..<(test ?: truth)[0].size()
-        }
-        (1..<Math.min(truth.size(), test.size())).each { idx ->
-            def truval = truth[idx] // should be an array of binary
-            def testval = test[idx]
 
-            result += awareness.sum { idx2 ->
-                (1 - Math.abs(truval[idx2] - testval[idx2]))
-            } / awareness.size()
-
-        }
-        return result / (Math.max(test.size(), truth.size()) - 1)
-    }
 
     def void approach(BinaryThresholdCmap other, double amount) {
         JGraphTUtils.approach(model.graph, other.graph, amount)
@@ -57,10 +44,12 @@ class Agent {
     def double probe(BinaryThresholdCmap reality, Integer question) {
 
         List behavior = model.getBehavior(question)
-        score(behavior, reality.getBehavior(question),awareness)
+        Toolkit.score(behavior, reality.getBehavior(question),awareness)
     }
 
+    //@TODO Make this into a method that externalizes the states an agent is exposed to
     def update(BinaryThresholdCmap reality) {
+
         currentScore = probe(reality, interests[random.nextInt(interests.size())])
     }
 

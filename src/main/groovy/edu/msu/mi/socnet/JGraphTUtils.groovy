@@ -163,6 +163,41 @@ class JGraphTUtils {
         return graph
     }
 
+    static SimpleDirectedWeightedGraph<AttributeVertex, AttributeEdge> createFixedDegreeRandomWeightedGraph(int nodecount, int degree) {
+        SimpleDirectedWeightedGraph<AttributeVertex, AttributeEdge> graph = new SimpleDirectedWeightedGraph<AttributeVertex, AttributeEdge>(AttributeEdge.class) {
+            public String toString() {
+                edgeSet().collect {
+                    "${getEdgeSource(it).id}->${getEdgeTarget(it).id} (${getEdgeWeight(it)})"
+                }.join(",")
+            }
+        }
+        VertexFactory<AttributeVertex> vf = new VertexFactory<AttributeVertex>() {
+
+            private int localid = 0;
+
+            @Override
+            AttributeVertex createVertex() {
+                return new AttributeVertex("N" + (this.localid++))
+            }
+        }
+
+        (0..<nodecount).each {
+            graph.addVertex(vf.createVertex())
+        }
+
+        List targets = graph.vertexSet() as List
+        List all = graph.vertexSet() as List
+
+        while (targets) {
+            AttributeVertex target = targets.pop()
+            def sources = all - target
+            Collections.shuffle(sources)
+            JGraphTUtils.safeAdd(graph,sources[0],target,1.0)
+            JGraphTUtils.safeAdd(graph,sources[1],target,1.0)
+        }
+        return graph
+    }
+
     static SimpleDirectedWeightedGraph<AttributeVertex, AttributeEdge> createRingGraph(int nodecount) {
         SimpleDirectedWeightedGraph<AttributeVertex, AttributeEdge> graph = new SimpleDirectedWeightedGraph<AttributeVertex, AttributeEdge>(AttributeEdge.class) {
             public String toString() {
@@ -214,7 +249,7 @@ class JGraphTUtils {
 
     static <V, E> double cosineSimilarity(WeightedGraph<V, E> one, WeightedGraph<V, E> two, Map indicesOne = null, Map indicesTwo = null) {
         if (one.vertexSet().size() != two.vertexSet().size()) {
-           return 0.0
+            return 0.0
         }
         if (!indicesOne) {
             int i = 0
@@ -225,27 +260,27 @@ class JGraphTUtils {
             indicesTwo = two.vertexSet().collectEntries { [i++, it] }
         }
 
-        double denomOne = 0.0,denomTwo = 0.0
+        double denomOne = 0.0, denomTwo = 0.0
 
         double num = (0..<one.vertexSet().size()).sum { int from ->
-            int f = from+1
+            int f = from + 1
             Double result = (f..<one.vertexSet().size()).sum { int to ->
-                E eone = one.getEdge(indicesOne[from],indicesOne[to])
-                E etwo  = two.getEdge(indicesTwo[from],indicesTwo[to])
+                E eone = one.getEdge(indicesOne[from], indicesOne[to])
+                E etwo = two.getEdge(indicesTwo[from], indicesTwo[to])
 
-                double wone = eone?one.getEdgeWeight(eone):0
-                double wtwo = etwo?two.getEdgeWeight(etwo):0
+                double wone = eone ? one.getEdgeWeight(eone) : 0
+                double wtwo = etwo ? two.getEdgeWeight(etwo) : 0
 
                 denomOne += (wone**2)
                 denomTwo += (wtwo**2)
 
-                wone*wtwo
+                wone * wtwo
             }
-            result?:0.0
+            result ?: 0.0
 
         }
 
-        num / (Math.sqrt(denomOne)*Math.sqrt(denomTwo))
+        num / (Math.sqrt(denomOne) * Math.sqrt(denomTwo))
 
 
     }
@@ -267,13 +302,82 @@ class JGraphTUtils {
             if (!te) {
                 double fw = from.getEdgeWeight(edge)
                 double nw = fw - (fw * amount)
-                if (nw == 0) {
+                if (Math.abs(nw) < 0.0001 && amount > 0) {
                     from.removeEdge(edge)
                 } else {
                     from.setEdgeWeight(edge, nw)
                 }
             }
         }
+    }
+
+    static <V, E> void approach(WeightedGraph<V, E> from, WeightedGraph<V, E> to, Map vmap1, Map vmap2, double amount = 0.0) {
+        int maxIdx = vmap2.keySet().max()
+        (0..maxIdx).each { int fv ->
+            (0..maxIdx).each { int tv ->
+                if (fv != tv) {
+                    E te = to.getEdge(vmap2[fv], vmap2[tv])
+                    if (te) {
+                        E ne = safeAddWithDefault(from, vmap1[fv], vmap1[tv], 0.0)
+                        double fw = from.getEdgeWeight(ne)
+                        double tw = to.getEdgeWeight(te)
+                        from.setEdgeWeight(ne, fw + (tw - fw) * amount)
+                    } else {
+                        E fe = from.getEdge(vmap1[fv], vmap1[tv])
+                        if (fe) {
+                            double fw = from.getEdgeWeight(fe)
+                            double nw = fw - (fw * amount)
+                            if (nw == 0.0 || (nw == fw && amount > 0)) {
+
+                                from.removeEdge(fe)
+                            } else {
+                                from.setEdgeWeight(fe, nw)
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+    /**
+     * Copy "links" random links from the target network
+     *
+     * @param from
+     * @param to
+     * @param links
+     */
+    static <V, E> void adopt(WeightedGraph<V, E> from, WeightedGraph<V, E> to, int links = 1, Random r = null) {
+        List edges = to.edgeSet().collect {
+            [type: "t", edge: it]
+        } + from.edgeSet().collect {
+            [type: "f", edge: it]
+        } as List
+
+        Random rand = r ?: new Random()
+        while (links--) {
+            def target = edges.remove(rand.nextInt(edges.size()))
+            if (target.type == "t") {
+                V s = to.getEdgeSource(target.edge)
+                V d = to.getEdgeTarget(target.edge)
+                safeAdd(from, s, d, to.getEdgeWeight(target.edge))
+            } else {
+                V s = from.getEdgeSource(target.edge)
+                V d = from.getEdgeTarget(target.edge)
+
+                E e = to.getEdge(s,d)
+                if (!e) {
+                    from.removeEdge(target.edge)
+                } else {
+                    from.setEdgeWeight(e,to.getEdgeWeight(e))
+                }
+
+            }
+
+        }
+        from
+
     }
 
 

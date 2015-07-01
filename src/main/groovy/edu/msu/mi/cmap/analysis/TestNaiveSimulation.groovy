@@ -1,9 +1,8 @@
 package edu.msu.mi.cmap.analysis
 
-import edu.msu.mi.cmap.AgentSimulation
+import edu.msu.mi.cmap.simulation.AgentSimulation
 import edu.msu.mi.cmap.BinaryThresholdCmap
-import edu.msu.mi.cmap.Toolkit
-
+import edu.msu.mi.cmap.simulation.NaiveSimulationFactory
 
 /**
  * Created by josh on 6/3/15.
@@ -22,8 +21,8 @@ def printAttractor(def v) {
     "${v.type} basin:${v.basin.vertexSet().size()-v.attractor.vertexSet().size()}  attractor:${v.attractor.vertexSet().size()}"
 }
 
-BinaryThresholdCmap model = new BinaryThresholdCmap(8,0.282)
-AgentSimulation sim = new AgentSimulation(model,32,1.0)
+BinaryThresholdCmap model = new BinaryThresholdCmap(8,0.2)
+AgentSimulation sim = new AgentSimulation(model,new NaiveSimulationFactory(), 32,1.0)
 //outputAgentSimilarity(sim)
 sim.runSimulation(1000)
 //println(model.analyzeAttractorProfile().collect {v->"${v.type} basin:${v.basin.vertexSet().size()-v.attractor.vertexSet().size()}  attractor:${v.attractor.vertexSet().size()}"}.join("\n"))

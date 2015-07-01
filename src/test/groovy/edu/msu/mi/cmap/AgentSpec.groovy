@@ -1,5 +1,6 @@
 package edu.msu.mi.cmap
 
+import edu.msu.mi.cmap.simulation.Agent
 import junit.framework.Assert
 import spock.lang.Specification
 
